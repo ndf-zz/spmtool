@@ -1,6 +1,9 @@
 # spmtool
 
-Read/write SPM motor controller configuration over serial connection
+Read/write Kelly SPM brushed motor controller
+configuration over serial connection. Tested with:
+
+   - SPM24121
 
 
 ## Usage

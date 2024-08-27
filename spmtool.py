@@ -297,7 +297,8 @@ class Spm():
 
     def _recv(self, len):
         rb = self._port.read(len)
-        _log.debug('RECV: %s', rb.hex())
+        if rb:
+            _log.debug('RECV: %s', rb.hex())
         return rb
 
     def _readping(self):
@@ -309,6 +310,26 @@ class Spm():
         else:
             _log.debug('Invalid ping response')
             return False
+
+    def _readraw(self):
+        rb = self._recv(2)
+        if len(rb) != 2:
+            if rb:
+                _log.error('Error reading message header')
+            return None
+
+        blen = rb[1]
+        rb += self._recv(blen + 1)
+        if len(rb) != blen + 3:
+            _log.error('Error reading message body')
+            return None
+
+        sum = self._msgsum(rb[0:-1])
+        if sum != rb[-1]:
+            _log.error('Invalid message sum %x != %x', rb[-1], sum)
+            return None
+
+        return (rb[0], blen, rb)
 
     def _readmsg(self, hdr=None, mlen=None):
         """Read a controller response message"""
@@ -369,8 +390,8 @@ class Spm():
             self._port = None
             _log.debug('Close serial port')
 
-    def open(self):
-        """Establish and check serial connection to controller"""
+    def _open(self):
+        """Raw connect serial port"""
         if self._port is not None:
             _log.debug('Controller already open')
             return True
@@ -379,7 +400,11 @@ class Spm():
         self._port = Serial(port=self.port,
                             baudrate=_BAUDRATE,
                             rtscts=False,
-                            timeout=0.5)
+                            timeout=0.2)
+
+    def open(self):
+        """Establish and check serial connection to controller"""
+        self._open()
         if self.ping() and self.getver():
             _log.debug('Connected to controller s/w ver=%s', self._swver)
         else:
